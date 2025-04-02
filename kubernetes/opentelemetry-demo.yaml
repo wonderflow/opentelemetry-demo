@@ -11025,9 +11025,9 @@ spec:
             - name: LOCUST_WEB_PORT
               value: "8089"
             - name: LOCUST_USERS
-              value: "10"
+              value: "50"
             - name: LOCUST_SPAWN_RATE
-              value: "1"
+              value: "10"
             - name: LOCUST_HOST
               value: http://frontend-proxy:8080
             - name: LOCUST_HEADLESS
@@ -11046,11 +11046,6 @@ spec:
               value: http://$(OTEL_COLLECTOR_NAME):4317
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
-          resources:
-            limits:
-              memory: 1500Mi
-          volumeMounts:
-      volumes:
 ---
 # Source: opentelemetry-demo/templates/component.yaml
 apiVersion: apps/v1
