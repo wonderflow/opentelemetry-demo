@@ -441,6 +441,23 @@ data:
         regex: true
         source_labels:
         - __meta_kubernetes_pod_annotation_opentelemetry_community_demo
+    - job_name: 'kubernetes-nodes-cadvisor'
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      kubernetes_sd_configs:
+        - role: node
+      relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+        - target_label: __address__
+          replacement: kubernetes.default.svc:443
+        - source_labels: [__meta_kubernetes_node_name]
+          regex: (.+)
+          target_label: __metrics_path__
+          replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
   recording_rules.yml: |
     {}
   rules: |
@@ -1273,7 +1290,7 @@ data:
                   }
                 ]
               },
-              "unit": "percent"
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -1304,28 +1321,15 @@ data:
                 "uid": "webstore-metrics"
               },
               "editorMode": "code",
-              "expr": "rate(process_runtime_cpython_cpu_time_seconds_total{type=~\"system\"}[$__rate_interval])*100",
+              "expr": "sum(rate(container_cpu_usage_seconds_total{pod=~\"$service.*\",image=\"\"}[5m])) by (pod) / sum(container_spec_cpu_quota{pod=~\"$service.*\"} / 100000) by (pod)",
               "hide": false,
               "interval": "2m",
-              "legendFormat": "{{job}} ({{type}})",
+              "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "webstore-metrics"
-              },
-              "editorMode": "code",
-              "expr": "rate(process_runtime_cpython_cpu_time_seconds_total{type=~\"user\"}[$__rate_interval])*100",
-              "hide": false,
-              "interval": "2m",
-              "legendFormat": "{{job}} ({{type}})",
-              "range": true,
-              "refId": "B"
             }
           ],
-          "title": "Python services (CPU%)",
+          "title": "Services CPU usage ratio",
           "transformations": [
             {
               "id": "renameByRegex",
@@ -1393,7 +1397,7 @@ data:
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -1424,13 +1428,13 @@ data:
                 "uid": "webstore-metrics"
               },
               "editorMode": "code",
-              "expr": "process_runtime_cpython_memory_bytes{type=\"rss\"}",
-              "legendFormat": "{{job}}",
+              "expr": "sum(container_memory_usage_bytes{pod=~\"$service.*\",image=\"\"}) by (pod) / sum(container_spec_memory_limit_bytes{pod=~\"$service.*\"}) by (pod)",
+              "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Python services (Memory)",
+          "title": "Services memory usage ratio",
           "transformations": [
             {
               "id": "renameByRegex",
