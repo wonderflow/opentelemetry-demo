@@ -1321,7 +1321,7 @@ data:
                 "uid": "webstore-metrics"
               },
               "editorMode": "code",
-              "expr": "sum(rate(container_cpu_usage_seconds_total{pod=~\"$service.*\",image=\"\"}[5m])) by (pod) / sum(container_spec_cpu_quota{pod=~\"$service.*\",image=\"\"} / 100000) by (pod)",
+              "expr": "sum(rate(container_cpu_usage_seconds_total{pod=~\"$service.*\",container!=\"\"}[5m])) by (pod) / sum(container_spec_cpu_quota{pod=~\"$service.*\",container!=\"\"} / 100000) by (pod)",
               "hide": false,
               "interval": "2m",
               "legendFormat": "{{pod}}",
@@ -1428,7 +1428,7 @@ data:
                 "uid": "webstore-metrics"
               },
               "editorMode": "code",
-              "expr": "sum(container_memory_usage_bytes{pod=~\"$service.*\",image=\"\"}) by (pod) / sum(container_spec_memory_limit_bytes{pod=~\"$service.*\",image=\"\"}) by (pod)",
+              "expr": "sum(container_memory_usage_bytes{pod=~\"$service.*\",container!=\"\"}) by (pod) / sum(container_spec_memory_limit_bytes{pod=~\"$service.*\",container!=\"\"}) by (pod)",
               "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
@@ -9916,7 +9916,8 @@ spec:
             timeoutSeconds: 1
           resources:
             limits:
-              memory: 400Mi
+              memory: 1Gi
+              cpu: 1
           volumeMounts:
       securityContext:
         fsGroup: 10001
@@ -10095,6 +10096,7 @@ spec:
           resources:
             limits:
               memory: 300Mi
+              cpu: 100m
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config
@@ -10165,6 +10167,7 @@ spec:
           resources:
             limits:
               memory: 120Mi
+              cpu: 100m
           volumeMounts:
       initContainers:
         - command:
@@ -10233,7 +10236,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 300Mi
+              memory: 200Mi
+              cpu: 100m
           volumeMounts:
       volumes:
 ---
@@ -10298,6 +10302,7 @@ spec:
           resources:
             limits:
               memory: 160Mi
+              cpu: 100m
           volumeMounts:
       initContainers:
         - command:
@@ -10379,7 +10384,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 100Mi
+              memory: 30Mi
+              cpu: 100m              
           volumeMounts:
       initContainers:
         - command:
@@ -10444,7 +10450,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 100Mi
+              memory: 40Mi
+              cpu: 100m
           volumeMounts:
       volumes:
 ---
@@ -10503,6 +10510,7 @@ spec:
           resources:
             limits:
               memory: 100Mi
+              cpu: 100m
           volumeMounts:
       volumes:
 ---
@@ -10593,7 +10601,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 200Mi
+              memory: 100Mi
+              cpu: 100m
           volumeMounts:
             - mountPath: /app/data
               name: config-rw
@@ -10670,6 +10679,7 @@ spec:
           resources:
             limits:
               memory: 300Mi
+              cpu: 100m
           volumeMounts:
       initContainers:
         - command:
@@ -10758,7 +10768,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 250Mi
+              memory: 200Mi
+              cpu: 100m
           securityContext:
             runAsGroup: 1001
             runAsNonRoot: true
@@ -10850,7 +10861,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 165Mi
+              memory: 100Mi
+              cpu: 100m
           securityContext:
             runAsGroup: 101
             runAsNonRoot: true
@@ -10912,7 +10924,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 150Mi
+              memory: 100Mi
+              cpu: 100m
           volumeMounts:
       volumes:
 ---
@@ -10973,6 +10986,7 @@ spec:
           resources:
             limits:
               memory: 600Mi
+              cpu: 100m
           securityContext:
             runAsGroup: 1000
             runAsNonRoot: true
@@ -11011,6 +11025,10 @@ spec:
         - name: load-generator
           image: "ghcr.io/open-telemetry/demo:2.0.0-load-generator"
           imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              memory: 12Gi
+              cpu: 2
           ports:
             - containerPort: 8089
               name: service
@@ -11107,7 +11125,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 220Mi
+              memory: 100Mi
+              cpu: 100m
           securityContext:
             runAsGroup: 1000
             runAsNonRoot: true
@@ -11177,7 +11196,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 120Mi
+              memory: 20Mi
+              cpu: 100m
           volumeMounts:
             - name: product-catalog-products
               mountPath: /usr/src/app/products
@@ -11240,7 +11260,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 140Mi
+              memory: 100Mi
+              cpu: 100m
           securityContext:
             runAsGroup: 33
             runAsNonRoot: true
@@ -11310,7 +11331,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 500Mi
+              memory: 100Mi
+              cpu: 100m
           volumeMounts:
       volumes:
 ---
@@ -11368,7 +11390,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 120Mi
+              memory: 50Mi
+              cpu: 100m
           volumeMounts:
       volumes:
 ---
@@ -11421,6 +11444,7 @@ spec:
           resources:
             limits:
               memory: 120Mi
+              cpu: 100m
           securityContext:
             runAsGroup: 1000
             runAsNonRoot: true
@@ -11539,7 +11563,7 @@ spec:
               containerPort: 9600
           resources:
             limits:
-              memory: 1100Mi
+              memory: 2Gi
             requests:
               cpu: 1000m
               memory: 100Mi
