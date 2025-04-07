@@ -11144,7 +11144,7 @@ spec:
       serviceAccountName: opentelemetry-demo
       containers:
         - name: product-catalog
-          image: "ghcr.io/open-telemetry/demo:latest-product-catalog-3"
+          image: "fatsheep9146/otel-demo:latest-product-catalog-1"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
