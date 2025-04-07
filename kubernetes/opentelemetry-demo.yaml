@@ -11144,7 +11144,7 @@ spec:
       serviceAccountName: opentelemetry-demo
       containers:
         - name: product-catalog
-          image: "ghcr.io/open-telemetry/demo:2.0.0-product-catalog"
+          image: "ghcr.io/open-telemetry/demo:latest-product-catalog-3"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -11159,6 +11159,10 @@ spec:
               value: otel-collector
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: cumulative
+            - name: REDIS_ADDRESS
+              value: redis:6379
+            - name: REDIS_PASSWORD
+              value: redispassword
             - name: PRODUCT_CATALOG_PORT
               value: "8080"
             - name: PRODUCT_CATALOG_RELOAD_INTERVAL
