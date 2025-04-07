@@ -1321,7 +1321,7 @@ data:
                 "uid": "webstore-metrics"
               },
               "editorMode": "code",
-              "expr": "sum(rate(container_cpu_usage_seconds_total{pod=~\"$service.*\",image=\"\"}[5m])) by (pod) / sum(container_spec_cpu_quota{pod=~\"$service.*\"} / 100000) by (pod)",
+              "expr": "sum(rate(container_cpu_usage_seconds_total{pod=~\"$service.*\",image=\"\"}[5m])) by (pod) / sum(container_spec_cpu_quota{pod=~\"$service.*\",image=\"\"} / 100000) by (pod)",
               "hide": false,
               "interval": "2m",
               "legendFormat": "{{pod}}",
@@ -1428,7 +1428,7 @@ data:
                 "uid": "webstore-metrics"
               },
               "editorMode": "code",
-              "expr": "sum(container_memory_usage_bytes{pod=~\"$service.*\",image=\"\"}) by (pod) / sum(container_spec_memory_limit_bytes{pod=~\"$service.*\"}) by (pod)",
+              "expr": "sum(container_memory_usage_bytes{pod=~\"$service.*\",image=\"\"}) by (pod) / sum(container_spec_memory_limit_bytes{pod=~\"$service.*\",image=\"\"}) by (pod)",
               "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
