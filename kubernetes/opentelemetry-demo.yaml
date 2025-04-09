@@ -139,7 +139,7 @@ data:
         - datasourceUid: webstore-traces
           name: trace_id
         - name: trace_id
-          url: http://localhost:8080/jaeger/ui/trace/$${__value.raw}
+          url: http://demo-agent.australiaeast.cloudapp.azure.com/jaeger/ui/trace/$${__value.raw}
           urlDisplayLabel: View in Jaeger UI
       name: Prometheus
       type: prometheus
@@ -9479,6 +9479,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend-proxy
+  annotations:
+    service.beta.kubernetes.io/azure-dns-label-name: demo-agent
   labels:
     opentelemetry.io/name: frontend-proxy
     app.kubernetes.io/instance: opentelemetry-demo
@@ -9489,7 +9491,7 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - port: 8080
+    - port: 80
       name: tcp-service
       targetPort: 8080
   selector:
@@ -9545,6 +9547,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: load-generator
+  annotations:
+    service.beta.kubernetes.io/azure-dns-label-name: demo-load-generator
   labels:
     opentelemetry.io/name: load-generator
     app.kubernetes.io/instance: opentelemetry-demo
@@ -10763,7 +10767,7 @@ spec:
             - name: WEB_OTEL_SERVICE_NAME
               value: frontend-web
             - name: PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-              value: http://localhost:8080/otlp-http/v1/traces
+              value: http://demo-agent.australiaeast.cloudapp.azure.com/otlp-http/v1/traces
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
@@ -11051,7 +11055,7 @@ spec:
             - name: LOCUST_SPAWN_RATE
               value: "10"
             - name: LOCUST_HOST
-              value: http://frontend-proxy:8080
+              value: http://demo-load-generator.australiaeast.cloudapp.azure.com
             - name: LOCUST_HEADLESS
               value: "false"
             - name: LOCUST_AUTOSTART
