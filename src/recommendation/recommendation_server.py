@@ -159,28 +159,36 @@ if __name__ == "__main__":
     pc_channel = grpc.insecure_channel(catalog_addr)
     product_catalog_stub = demo_pb2_grpc.ProductCatalogServiceStub(pc_channel)
 
-    def periodic_product_catalog_request():
-        """Periodically request product catalog to keep cache fresh or for monitoring"""
+    interval = float(os.environ.get('PRODUCT_CATALOG_REQUEST_INTERVAL', '0.5'))
+    worker_count = int(os.environ.get('PRODUCT_CATALOG_WORKER_COUNT', '1'))
+    
+    def product_catalog_request_worker(worker_id):
+        """Worker function to make periodic requests to product catalog service"""
         while True:
             try:
-                with tracer.start_as_current_span("periodic_product_catalog_request") as span:
-                    logger.info("Making periodic request to product catalog service")
-                    response = product_catalog_stub.ListProducts(demo_pb2.Empty())
-                    product_count = len(response.products)
-                    logger.info(f"Periodic request received {product_count} products")
-                    span.set_attribute("app.products.count", product_count)
-                    # You could update a cache here if needed
+                logger.info(f"Worker {worker_id}: Making periodic request to product catalog service")
+                response = product_catalog_stub.ListProducts(demo_pb2.Empty())
+                product_count = len(response.products)
+                logger.info(f"Worker {worker_id}: Periodic request received {product_count} products")
+                # You could update a cache here if needed
             except Exception as e:
-                logger.error(f"Error in periodic product catalog request: {e}")
+                logger.error(f"Worker {worker_id}: Error in periodic product catalog request: {e}")
             
             # Wait for the next cycle, configurable through environment variable
-            interval = float(os.environ.get('PRODUCT_CATALOG_REQUEST_INTERVAL', '0.5'))
             time.sleep(interval)
 
-    # Start the periodic request in a separate thread
-    periodic_thread = threading.Thread(target=periodic_product_catalog_request, daemon=True)
-    periodic_thread.start()
-    logger.info("Started periodic product catalog request thread")
+    # Start multiple worker threads based on configuration
+    worker_threads = []
+    for i in range(worker_count):
+        worker_thread = threading.Thread(
+            target=product_catalog_request_worker, 
+            args=(i,), 
+            daemon=True
+        )
+        worker_thread.start()
+        worker_threads.append(worker_thread)
+    
+    logger.info(f"Started {worker_count} periodic product catalog request workers with periodicity of {interval} seconds")
 
     # Create gRPC server
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

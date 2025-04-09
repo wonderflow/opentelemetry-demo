@@ -10240,7 +10240,7 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 200Mi
+              memory: 1Gi
               cpu: 100m
           volumeMounts:
       volumes:
@@ -10772,8 +10772,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 200Mi
-              cpu: 100m
+              memory: 400Mi
+              cpu: 500m
           securityContext:
             runAsGroup: 1001
             runAsNonRoot: true
@@ -11031,8 +11031,8 @@ spec:
           imagePullPolicy: IfNotPresent
           resources:
             limits:
-              memory: 12Gi
-              cpu: 2
+              memory: 8Gi
+              cpu: 1
           ports:
             - containerPort: 8089
               name: service
@@ -11051,7 +11051,7 @@ spec:
             - name: LOCUST_WEB_PORT
               value: "8089"
             - name: LOCUST_USERS
-              value: "50"
+              value: "20"
             - name: LOCUST_SPAWN_RATE
               value: "10"
             - name: LOCUST_HOST
@@ -11167,7 +11167,7 @@ spec:
       serviceAccountName: opentelemetry-demo
       containers:
         - name: product-catalog
-          image: "fatsheep9146/otel-demo:latest-product-catalog-1"
+          image: "fatsheep9146/otel-demo:latest-product-catalog-9"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -11188,6 +11188,8 @@ spec:
               value: redispassword
             - name: PRODUCT_CATALOG_PORT
               value: "8080"
+            - name: REDIS_LIST_RANGE_LIMIT
+              value: "1000"
             - name: PRODUCT_CATALOG_RELOAD_INTERVAL
               value: "10"
             - name: FLAGD_HOST
@@ -11200,8 +11202,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 20Mi
-              cpu: 100m
+              memory: 200Mi
+              cpu: 500m
           volumeMounts:
             - name: product-catalog-products
               mountPath: /usr/src/app/products
@@ -11286,7 +11288,7 @@ metadata:
     app.kubernetes.io/version: "2.0.0"
     app.kubernetes.io/part-of: opentelemetry-demo
 spec:
-  replicas: 1
+  replicas: 2
   revisionHistoryLimit: 10
   selector:
     matchLabels:
@@ -11303,6 +11305,7 @@ spec:
       containers:
         - name: recommendation
           image: "ghcr.io/open-telemetry/demo:2.0.0-recommendation"
+          # image: "fatsheep9146/otel-demo:latest-recommendation-8"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -11319,6 +11322,10 @@ spec:
               value: cumulative
             - name: RECOMMENDATION_PORT
               value: "8080"
+            - name: PRODUCT_CATALOG_REQUEST_INTERVAL
+              value: "0.01"
+            - name: PRODUCT_CATALOG_WORKER_COUNT
+              value: "200"
             - name: PRODUCT_CATALOG_ADDR
               value: product-catalog:8080
             - name: OTEL_PYTHON_LOG_CORRELATION
@@ -11335,8 +11342,8 @@ spec:
               value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version=2.0.0
           resources:
             limits:
-              memory: 100Mi
-              cpu: 100m
+              memory: 2Gi
+              cpu: 2
           volumeMounts:
       volumes:
 ---

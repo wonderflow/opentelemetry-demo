@@ -49,17 +49,29 @@ import (
 )
 
 var (
-	log               *logrus.Logger
-	catalog           []*pb.Product
-	resource          *sdkresource.Resource
-	initResourcesOnce sync.Once
-	redisClient       *redis.Client
+	log                 *logrus.Logger
+	catalog             []*pb.Product
+	resource            *sdkresource.Resource
+	initResourcesOnce   sync.Once
+	redisClient         *redis.Client
+	redisListRangeLimit int
 )
 
 const DEFAULT_RELOAD_INTERVAL = 10
 
 func init() {
 	log = logrus.New()
+
+	redisListRangeLimit = 1200
+	if limitStr := os.Getenv("REDIS_LIST_RANGE_LIMIT"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			redisListRangeLimit = limit
+		} else {
+			log.Warnf("Invalid REDIS_LIST_RANGE_LIMIT value: %s, using default: %d", limitStr, redisListRangeLimit)
+		}
+	}
+
+	log.Infof("Redis list range limit: %d\n", redisListRangeLimit)
 
 	loadProductCatalog()
 }
@@ -200,31 +212,31 @@ func loadProductCatalog() {
 	}
 
 	// Default reload interval is 10 seconds
-	interval := DEFAULT_RELOAD_INTERVAL
-	si := os.Getenv("PRODUCT_CATALOG_RELOAD_INTERVAL")
-	if si != "" {
-		interval, _ = strconv.Atoi(si)
-		if interval <= 0 {
-			interval = DEFAULT_RELOAD_INTERVAL
-		}
-	}
-	log.Infof("Product Catalog reload interval: %d", interval)
+	// interval := DEFAULT_RELOAD_INTERVAL
+	// si := os.Getenv("PRODUCT_CATALOG_RELOAD_INTERVAL")
+	// if si != "" {
+	// 	interval, _ = strconv.Atoi(si)
+	// 	if interval <= 0 {
+	// 		interval = DEFAULT_RELOAD_INTERVAL
+	// 	}
+	// }
+	// log.Infof("Product Catalog reload interval: %d", interval)
 
-	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	// ticker := time.NewTicker(time.Duration(interval) * time.Second)
 
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				log.Info("Reloading Product Catalog...")
-				catalog, err = readProductFiles()
-				if err != nil {
-					log.Errorf("Error reading product files: %v", err)
-					continue
-				}
-			}
-		}
-	}()
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-ticker.C:
+	// 			log.Info("Reloading Product Catalog...")
+	// 			catalog, err = readProductFiles()
+	// 			if err != nil {
+	// 				log.Errorf("Error reading product files: %v", err)
+	// 				continue
+	// 			}
+	// 		}
+	// 	}
+	// }()
 }
 
 func readProductFiles() ([]*pb.Product, error) {
@@ -286,17 +298,26 @@ func (p *productCatalog) Watch(req *healthpb.HealthCheckRequest, ws healthpb.Hea
 
 func (p *productCatalog) ListProducts(ctx context.Context, req *pb.Empty) (*pb.ListProductsResponse, error) {
 	span := trace.SpanFromContext(ctx)
+	log.Info("ListProducts called")
 
 	span.SetAttributes(
 		attribute.Int("app.products.count", len(catalog)),
 	)
 
 	// Try to get all products from Redis
-	keys, err := redisClient.Keys(ctx, "*").Result()
+	// Create a context with 100ms timeout for Redis operations
+	redisCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancel()
+
+	// Use LRANGE to fetch first 600 product keys
+	// Get the Redis list range limit from environment variable or use default
+
+	keys, err := redisClient.LRange(redisCtx, "product_keys", 0, int64(redisListRangeLimit)).Result()
 	if err != nil {
 		span.SetStatus(otelcodes.Error, fmt.Sprintf("Redis error: %v", err))
 		span.AddEvent("Falling back to in-memory catalog")
-		return &pb.ListProductsResponse{Products: catalog}, nil
+		log.Error("ListProducts failed in LRange:", err)
+		return nil, err
 	}
 
 	// If no keys found in Redis, use the in-memory catalog
@@ -306,32 +327,8 @@ func (p *productCatalog) ListProducts(ctx context.Context, req *pb.Empty) (*pb.L
 	}
 
 	// Retrieve each product from Redis
-	var redisProducts []*pb.Product
-	for _, key := range keys {
-		val, err := redisClient.Get(ctx, key).Result()
-		if err != nil {
-			span.AddEvent(fmt.Sprintf("Failed to get product %s from Redis: %v", key, err))
-			continue
-		}
-
-		product := &pb.Product{}
-		if err := protojson.Unmarshal([]byte(val), product); err != nil {
-			span.AddEvent(fmt.Sprintf("Failed to unmarshal product %s: %v", key, err))
-			continue
-		}
-
-		redisProducts = append(redisProducts, product)
-	}
-
-	span.SetAttributes(attribute.Int("app.redis.products.count", len(redisProducts)))
-
-	// If we couldn't get any products from Redis, fall back to catalog
-	if len(redisProducts) == 0 {
-		span.AddEvent("No valid products from Redis, using in-memory catalog")
-		return &pb.ListProductsResponse{Products: catalog}, nil
-	}
-
-	return &pb.ListProductsResponse{Products: redisProducts}, nil
+	log.Info("ListProducts completed successfully")
+	return &pb.ListProductsResponse{Products: catalog}, nil
 }
 
 func (p *productCatalog) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb.Product, error) {
@@ -339,6 +336,16 @@ func (p *productCatalog) GetProduct(ctx context.Context, req *pb.GetProductReque
 	span.SetAttributes(
 		attribute.String("app.product.id", req.Id),
 	)
+
+	redisCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancel()
+	_, err := redisClient.LRange(redisCtx, "product_keys", 0, int64(redisListRangeLimit)).Result()
+	if err != nil {
+		span.SetStatus(otelcodes.Error, fmt.Sprintf("Redis error: %v", err))
+		span.AddEvent("Falling back to in-memory catalog")
+		log.Error("GetProduct failed in LRange:", err)
+		return nil, err
+	}
 
 	// GetProduct will fail on a specific product when feature flag is enabled
 	if p.checkProductFailure(ctx, req.Id) {
@@ -384,49 +391,13 @@ func (p *productCatalog) GetProduct(ctx context.Context, req *pb.GetProductReque
 func (p *productCatalog) SearchProducts(ctx context.Context, req *pb.SearchProductsRequest) (*pb.SearchProductsResponse, error) {
 	span := trace.SpanFromContext(ctx)
 
-	span.SetAttributes(
-		attribute.String("app.products_search.query", req.Query),
-	)
-
-	// Try to get all products from Redis
-	keys, err := redisClient.Keys(ctx, "*").Result()
-	if err != nil {
-		span.SetStatus(otelcodes.Error, fmt.Sprintf("Redis error: %v", err))
-		span.AddEvent("Falling back to in-memory catalog for search")
-
-		// Fall back to in-memory search
-		var result []*pb.Product
-		for _, product := range catalog {
-			if strings.Contains(strings.ToLower(product.Name), strings.ToLower(req.Query)) ||
-				strings.Contains(strings.ToLower(product.Description), strings.ToLower(req.Query)) {
-				result = append(result, product)
-			}
-		}
-		return &pb.SearchProductsResponse{Results: result}, nil
-	}
-
-	// Search products from Redis
 	var result []*pb.Product
-	for _, key := range keys {
-		val, err := redisClient.Get(ctx, key).Result()
-		if err != nil {
-			span.AddEvent(fmt.Sprintf("Failed to get product %s from Redis: %v", key, err))
-			continue
-		}
-
-		product := &pb.Product{}
-		if err := protojson.Unmarshal([]byte(val), product); err != nil {
-			span.AddEvent(fmt.Sprintf("Failed to unmarshal product %s: %v", key, err))
-			continue
-		}
-
+	for _, product := range catalog {
 		if strings.Contains(strings.ToLower(product.Name), strings.ToLower(req.Query)) ||
 			strings.Contains(strings.ToLower(product.Description), strings.ToLower(req.Query)) {
 			result = append(result, product)
 		}
 	}
-
-	span.AddEvent(fmt.Sprintf("Found %d products in Redis matching query: %s", len(result), req.Query))
 	span.SetAttributes(
 		attribute.Int("app.products_search.count", len(result)),
 	)
